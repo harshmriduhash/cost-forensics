@@ -29,8 +29,9 @@ function fromB64(str: string): Uint8Array {
 export async function encryptSecret(plaintext: string): Promise<string> {
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext)));
-  return `v1:${toB64(iv)}:${toB64(ct)}`;
+  const buf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
+  const ct = new Uint8Array(buf);
+  return `v1:${toB64(iv)}:${toB64(new Uint8Array(ct))}`;
 }
 
 export async function decryptSecret(payload: string): Promise<string> {

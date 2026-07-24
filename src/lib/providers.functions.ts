@@ -108,7 +108,6 @@ export const resyncProvider = createServerFn({ method: "POST" })
 async function rebuildRollups(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // Simple recompute: aggregate cost_events into daily_cost_rollups.
-  await supabaseAdmin.rpc("noop", {}).then(() => undefined).catch(() => undefined);
   const { data: events } = await supabaseAdmin
     .from("cost_events")
     .select("provider_type, model, cost_usd, input_tokens, output_tokens, requests, occurred_at")
