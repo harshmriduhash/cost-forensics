@@ -29,19 +29,20 @@ function fromB64(str: string): Uint8Array {
 export async function encryptSecret(plaintext: string): Promise<string> {
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const buf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
-  const ct = new Uint8Array(buf);
-  return `v1:${toB64(iv)}:${toB64(new Uint8Array(ct))}`;
+  const buf = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv as BufferSource }, key, enc.encode(plaintext));
+  return `v1:${toB64(iv)}:${toB64(new Uint8Array(buf))}`;
 }
 
 export async function decryptSecret(payload: string): Promise<string> {
   const [v, ivB64, ctB64] = payload.split(":");
   if (v !== "v1" || !ivB64 || !ctB64) throw new Error("Malformed encrypted payload");
   const key = await getKey();
+  const iv = fromB64(ivB64);
+  const ct = fromB64(ctB64);
   const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: fromB64(ivB64) },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
-    fromB64(ctB64),
+    ct as BufferSource,
   );
   return dec.decode(pt);
 }

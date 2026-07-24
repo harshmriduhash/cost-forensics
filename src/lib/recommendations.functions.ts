@@ -146,7 +146,7 @@ export const updateRecommendation = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), status: z.enum(["pending", "implemented", "dismissed"]) }).parse(v),
   )
   .handler(async ({ data, context }) => {
-    const patch: Record<string, unknown> = { status: data.status };
+  const patch: { status: "pending" | "implemented" | "dismissed"; implemented_at?: string } = { status: data.status };
     if (data.status === "implemented") patch.implemented_at = new Date().toISOString();
     const { error } = await context.supabase.from("recommendations").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
