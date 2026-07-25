@@ -291,6 +291,7 @@ export type Database = {
           generated_from_snapshot: string | null
           id: string
           implemented_at: string | null
+          notes: string | null
           predicted_savings_usd: number | null
           risk: Database["public"]["Enums"]["risk_level"]
           status: Database["public"]["Enums"]["recommendation_status"]
@@ -309,6 +310,7 @@ export type Database = {
           generated_from_snapshot?: string | null
           id?: string
           implemented_at?: string | null
+          notes?: string | null
           predicted_savings_usd?: number | null
           risk?: Database["public"]["Enums"]["risk_level"]
           status?: Database["public"]["Enums"]["recommendation_status"]
@@ -327,6 +329,7 @@ export type Database = {
           generated_from_snapshot?: string | null
           id?: string
           implemented_at?: string | null
+          notes?: string | null
           predicted_savings_usd?: number | null
           risk?: Database["public"]["Enums"]["risk_level"]
           status?: Database["public"]["Enums"]["recommendation_status"]
