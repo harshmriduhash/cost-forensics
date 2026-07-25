@@ -2,13 +2,14 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Activity, BarChart3, Bell, Lightbulb, Plug, Settings, LogOut, Sparkles } from "lucide-react";
+import { Activity, BarChart3, Bell, FileText, Lightbulb, Plug, Settings, LogOut, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const items = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/dashboard/providers", label: "Providers", icon: Plug },
   { to: "/dashboard/recommendations", label: "Recommendations", icon: Lightbulb },
+  { to: "/dashboard/reports", label: "Reports", icon: FileText },
   { to: "/dashboard/alerts", label: "Alerts", icon: Bell },
   { to: "/dashboard/settings", label: "Settings", icon: Settings },
 ] as const;
