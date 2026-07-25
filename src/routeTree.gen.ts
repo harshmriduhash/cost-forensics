@@ -17,11 +17,14 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
+import { Route as AuthenticatedDashboardReportsRouteImport } from './routes/_authenticated/dashboard/reports'
 import { Route as AuthenticatedDashboardRecommendationsRouteImport } from './routes/_authenticated/dashboard/recommendations'
 import { Route as AuthenticatedDashboardProvidersRouteImport } from './routes/_authenticated/dashboard/providers'
 import { Route as AuthenticatedDashboardAlertsRouteImport } from './routes/_authenticated/dashboard/alerts'
+import { Route as AuthenticatedDashboardRecommendationsIdRouteImport } from './routes/_authenticated/dashboard/recommendations.$id'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -62,6 +65,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardIndexRoute =
   AuthenticatedDashboardIndexRouteImport.update({
     id: '/dashboard/',
@@ -72,6 +80,12 @@ const AuthenticatedDashboardSettingsRoute =
   AuthenticatedDashboardSettingsRouteImport.update({
     id: '/dashboard/settings',
     path: '/dashboard/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDashboardReportsRoute =
+  AuthenticatedDashboardReportsRouteImport.update({
+    id: '/dashboard/reports',
+    path: '/dashboard/reports',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDashboardRecommendationsRoute =
@@ -92,6 +106,12 @@ const AuthenticatedDashboardAlertsRoute =
     path: '/dashboard/alerts',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDashboardRecommendationsIdRoute =
+  AuthenticatedDashboardRecommendationsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedDashboardRecommendationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,11 +121,14 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/dashboard/alerts': typeof AuthenticatedDashboardAlertsRoute
   '/dashboard/providers': typeof AuthenticatedDashboardProvidersRoute
-  '/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRoute
+  '/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRouteWithChildren
+  '/dashboard/reports': typeof AuthenticatedDashboardReportsRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/dashboard/recommendations/$id': typeof AuthenticatedDashboardRecommendationsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,11 +138,14 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/dashboard/alerts': typeof AuthenticatedDashboardAlertsRoute
   '/dashboard/providers': typeof AuthenticatedDashboardProvidersRoute
-  '/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRoute
+  '/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRouteWithChildren
+  '/dashboard/reports': typeof AuthenticatedDashboardReportsRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/dashboard/recommendations/$id': typeof AuthenticatedDashboardRecommendationsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,11 +157,14 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/dashboard/alerts': typeof AuthenticatedDashboardAlertsRoute
   '/_authenticated/dashboard/providers': typeof AuthenticatedDashboardProvidersRoute
-  '/_authenticated/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRoute
+  '/_authenticated/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRouteWithChildren
+  '/_authenticated/dashboard/reports': typeof AuthenticatedDashboardReportsRoute
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/_authenticated/dashboard/recommendations/$id': typeof AuthenticatedDashboardRecommendationsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,11 +176,14 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/onboarding'
     | '/dashboard/alerts'
     | '/dashboard/providers'
     | '/dashboard/recommendations'
+    | '/dashboard/reports'
     | '/dashboard/settings'
     | '/dashboard/'
+    | '/dashboard/recommendations/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,11 +193,14 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/onboarding'
     | '/dashboard/alerts'
     | '/dashboard/providers'
     | '/dashboard/recommendations'
+    | '/dashboard/reports'
     | '/dashboard/settings'
     | '/dashboard'
+    | '/dashboard/recommendations/$id'
   id:
     | '__root__'
     | '/'
@@ -176,11 +211,14 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/reset-password'
     | '/terms'
+    | '/_authenticated/onboarding'
     | '/_authenticated/dashboard/alerts'
     | '/_authenticated/dashboard/providers'
     | '/_authenticated/dashboard/recommendations'
+    | '/_authenticated/dashboard/reports'
     | '/_authenticated/dashboard/settings'
     | '/_authenticated/dashboard/'
+    | '/_authenticated/dashboard/recommendations/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -252,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard/': {
       id: '/_authenticated/dashboard/'
       path: '/dashboard'
@@ -264,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/settings'
       fullPath: '/dashboard/settings'
       preLoaderRoute: typeof AuthenticatedDashboardSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/reports': {
+      id: '/_authenticated/dashboard/reports'
+      path: '/dashboard/reports'
+      fullPath: '/dashboard/reports'
+      preLoaderRoute: typeof AuthenticatedDashboardReportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard/recommendations': {
@@ -287,22 +339,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardAlertsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dashboard/recommendations/$id': {
+      id: '/_authenticated/dashboard/recommendations/$id'
+      path: '/$id'
+      fullPath: '/dashboard/recommendations/$id'
+      preLoaderRoute: typeof AuthenticatedDashboardRecommendationsIdRouteImport
+      parentRoute: typeof AuthenticatedDashboardRecommendationsRoute
+    }
   }
 }
 
+interface AuthenticatedDashboardRecommendationsRouteChildren {
+  AuthenticatedDashboardRecommendationsIdRoute: typeof AuthenticatedDashboardRecommendationsIdRoute
+}
+
+const AuthenticatedDashboardRecommendationsRouteChildren: AuthenticatedDashboardRecommendationsRouteChildren =
+  {
+    AuthenticatedDashboardRecommendationsIdRoute:
+      AuthenticatedDashboardRecommendationsIdRoute,
+  }
+
+const AuthenticatedDashboardRecommendationsRouteWithChildren =
+  AuthenticatedDashboardRecommendationsRoute._addFileChildren(
+    AuthenticatedDashboardRecommendationsRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedDashboardAlertsRoute: typeof AuthenticatedDashboardAlertsRoute
   AuthenticatedDashboardProvidersRoute: typeof AuthenticatedDashboardProvidersRoute
-  AuthenticatedDashboardRecommendationsRoute: typeof AuthenticatedDashboardRecommendationsRoute
+  AuthenticatedDashboardRecommendationsRoute: typeof AuthenticatedDashboardRecommendationsRouteWithChildren
+  AuthenticatedDashboardReportsRoute: typeof AuthenticatedDashboardReportsRoute
   AuthenticatedDashboardSettingsRoute: typeof AuthenticatedDashboardSettingsRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedDashboardAlertsRoute: AuthenticatedDashboardAlertsRoute,
   AuthenticatedDashboardProvidersRoute: AuthenticatedDashboardProvidersRoute,
   AuthenticatedDashboardRecommendationsRoute:
-    AuthenticatedDashboardRecommendationsRoute,
+    AuthenticatedDashboardRecommendationsRouteWithChildren,
+  AuthenticatedDashboardReportsRoute: AuthenticatedDashboardReportsRoute,
   AuthenticatedDashboardSettingsRoute: AuthenticatedDashboardSettingsRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
 }

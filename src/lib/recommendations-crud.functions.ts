@@ -41,7 +41,16 @@ export const editRecommendation = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => updateSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
-    const finalPatch: Record<string, unknown> = { ...patch };
+    const finalPatch: {
+      title?: string;
+      summary?: string;
+      detail?: string | null;
+      code_snippet?: string | null;
+      notes?: string | null;
+      actual_savings_usd?: number | null;
+      status?: "pending" | "implemented" | "dismissed";
+      implemented_at?: string;
+    } = { ...patch };
     if (patch.status === "implemented") finalPatch.implemented_at = new Date().toISOString();
     const { error } = await context.supabase.from("recommendations").update(finalPatch).eq("id", id);
     if (error) throw new Error(error.message);
