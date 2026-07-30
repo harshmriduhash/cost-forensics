@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMe, updateProfile } from "@/lib/account.functions";
+import { deleteAccount, getMe, updateProfile } from "@/lib/account.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard/settings")({
   component: Page,
@@ -21,6 +21,7 @@ function Page() {
   const qc = useQueryClient();
   const meFn = useServerFn(getMe);
   const updFn = useServerFn(updateProfile);
+  const delFn = useServerFn(deleteAccount);
   const { data, isLoading } = useQuery({ queryKey: ["me"], queryFn: () => meFn({}) });
   const [name, setName] = useState("");
   useEffect(() => { if (data?.profile?.full_name) setName(data.profile.full_name); }, [data]);
@@ -35,6 +36,15 @@ function Page() {
 
   const plan = data?.subscription?.plan ?? "free";
   const status = data?.subscription?.status ?? "active";
+
+  const deleteCurrentAccount = useMutation({
+    mutationFn: () => delFn({}),
+    onSuccess: () => {
+      toast.success("Account deleted");
+      window.location.href = "/";
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Unable to delete account"),
+  });
 
   return (
     <AppShell>
@@ -73,9 +83,29 @@ function Page() {
             </div>
           ) : (
             <p className="mt-4 text-sm text-muted-foreground">
-              Manage billing from the customer portal (coming soon).
+              Billing management is being prepared for the next beta release. You can still use the product and share feedback in the meantime.
             </p>
           )}
+        </Card>
+
+        <Card className="p-6 border-destructive/30">
+          <h3 className="font-display text-lg text-destructive">Danger zone</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Permanently delete your account and all associated cost history.
+          </p>
+          <Button
+            variant="destructive"
+            className="mt-4"
+            onClick={() => {
+              if (window.confirm("This will permanently delete your account and data. Continue?")) {
+                deleteCurrentAccount.mutate();
+              }
+            }}
+            disabled={deleteCurrentAccount.isPending}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {deleteCurrentAccount.isPending ? "Deleting account..." : "Delete account"}
+          </Button>
         </Card>
       </div>
     </AppShell>

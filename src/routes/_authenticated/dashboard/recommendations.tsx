@@ -74,7 +74,7 @@ function Page() {
             <Sparkles className="mx-auto mb-2 h-6 w-6 text-primary" />
             <h3 className="font-display text-xl">No recommendations yet</h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Once you've connected a provider and have usage data, run an analysis to get specific optimization tips.
+              Once you've connected a provider and have usage data, run an analysis to get specific optimization tips for your traffic.
             </p>
             <Button className="mt-4" onClick={() => generate.mutate()} disabled={generate.isPending}>
               {generate.isPending ? "Analyzing..." : "Run analysis"}

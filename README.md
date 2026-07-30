@@ -83,15 +83,15 @@ Guided flow: welcome → connect provider → done. Skippable at any point.
 - Every rec includes: current cost, predicted savings, confidence, difficulty, risk
 - Full **CRUD detail view**: edit, add your own notes, track *actual* savings, mark implemented / dismissed, delete
 
-### 🚨 Alerts (Pro)
-Daily spend threshold, WoW % change, model-usage spikes → email + in-app notifications.
+### 🚨 Alerts (Beta)
+Daily spend threshold, WoW % change, and model-usage spikes now trigger in-app notifications and alert history.
 
 ### 📄 Reports
 - Beautiful multi-page **PDF** (cover, executive summary, per-model table, recommendations, activity)
 - Raw **CSV** for BI tools
 
 ### ⚙️ Settings
-Profile, provider management, notification preferences, danger zone (delete account).
+Profile, provider management, notification preferences, and a self-serve account deletion flow for beta users.
 
 ---
 
@@ -195,34 +195,47 @@ bun run dev            # → http://localhost:8080
 bun run build
 ```
 
+### Local beta checklist
+- Install dependencies with npm install
+- Run the app locally with npm run dev and open http://localhost:8080
+- Configure Supabase and AI gateway secrets in your environment
+- Connect a real provider key to verify dashboard + recommendations
+- Create at least one alert and verify it appears as an in-app notification
+- Test PDF and CSV export flows
+- Delete the account from Settings if you want to start over cleanly
+
 ### Environment (set in Lovable Cloud, never commit)
 
-| Key | Purpose |
-| --- | --- |
-| `PROVIDER_KEY_ENCRYPTION_SECRET` | 64-char hex — AES-GCM master |
-| `LOVABLE_API_KEY` | AI Gateway (auto-provisioned) |
-| `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Auto-provisioned |
+| Key | Purpose | Where to get it |
+| --- | --- | --- |
+| `PROVIDER_KEY_ENCRYPTION_SECRET` | 64-char hex — AES-GCM master | Generate locally with `openssl rand -hex 32` |
+| `LOVABLE_API_KEY` | AI Gateway for recommendation generation | Lovable workspace / AI gateway settings |
+| `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Existing auth + DB path | Supabase project settings |
+| `NEON_DATABASE_URL` | New Postgres/Neon connection string for the migration path | Neon project connection string |
+| `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Email delivery hooks | Resend dashboard |
+| `APP_URL` | Base URL for magic links and notification emails | Your production or localhost URL |
 
 ---
 
 ## 🗺 Roadmap
 
-### ✅ Built (v1 — this repo)
+### ✅ Built (beta-ready — this repo)
 - Marketing site (landing / pricing / privacy / terms / about)
 - Email + Google auth · password reset
 - 3-step onboarding wizard
-- Providers CRUD (OpenAI + Anthropic) w/ encrypted keys
+- Providers CRUD (OpenAI + Anthropic) with encrypted keys
 - Cost dashboard (KPIs + area / bar / donut charts)
 - AI recommendations engine + full CRUD detail (notes, actual savings)
-- Alerts (create / manage)
+- Alerts (create / manage) with in-app notifications and event history
 - PDF + CSV cost reports
-- Settings + danger zone
+- Settings + account deletion flow
 - RLS on every table, role separation, encrypted secrets
+- Resend-ready notification emails, SEO metadata, sitemap/manifest assets, and security headers
 
 ### 🔄 In progress
 - Stripe billing (Free / Pro $299) — Checkout + Portal + webhook
-- Resend transactional emails (welcome, alert, weekly digest)
-- pg_cron scheduled ingest + alert evaluation
+- Production email domain verification and dedicated templates
+- Scheduled ingest + alert evaluation jobs
 
 ### 🔜 Next (v1.1 — 30 days post-launch)
 - Slack destination for alerts

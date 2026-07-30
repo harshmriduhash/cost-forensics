@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { createInAppNotification } from "@/lib/account.functions";
 import { z } from "zod";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -125,7 +126,17 @@ Be concrete and numeric — use the actual numbers above. Do not invent models n
       generated_from_snapshot: today,
     }));
 
-    if (rows.length) await context.supabase.from("recommendations").insert(rows);
+    if (rows.length) {
+      await context.supabase.from("recommendations").insert(rows);
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await createInAppNotification(
+        supabaseAdmin,
+        context.userId,
+        "Recommendations ready",
+        `We generated ${rows.length} cost-saving recommendations from your latest usage data.`,
+        "info",
+      );
+    }
     return { count: rows.length };
   });
 

@@ -5,6 +5,12 @@ defines a route. Do **not** create `src/pages/`, `src/routes/_app/index.tsx`, or
 `app/layout.tsx` — those are Next.js / Remix conventions. The only root layout
 is `src/routes/__root.tsx`.
 
+## Current launch notes
+
+- Public marketing pages now include SEO metadata, a sitemap, and a web manifest.
+- Authenticated flows now create in-app notifications and attempt delivery through Resend when an email address is available.
+- Security headers are applied centrally in the request middleware for every response.
+
 ## Conventions
 
 | File | URL |

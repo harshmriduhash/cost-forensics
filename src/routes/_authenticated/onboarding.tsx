@@ -76,13 +76,13 @@ function Onboarding() {
             <h1 className="font-display text-4xl leading-tight">Cut your LLM bill by 30–70%.</h1>
             <p className="mt-3 text-muted-foreground">
               In three minutes you'll see every dollar you spend on OpenAI and Anthropic, plus AI-generated optimizations
-              tailored to your traffic.
+              tailored to your traffic. This beta is meant for real teams testing cost visibility and actionable savings.
             </p>
             <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
               {[
                 "Read-only access — we never send prompts or send calls on your behalf.",
                 "Your API key is encrypted (AES-GCM) at rest.",
-                "Delete your data any time from Settings.",
+                "You can delete your account and data at any time from Settings.",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2">
                   <Check className="mt-0.5 h-4 w-4 text-primary" /> {t}

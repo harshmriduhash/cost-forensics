@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sendNotificationEmail } from "@/lib/email";
 import { z } from "zod";
 
 export const listAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("alerts").select("*").order("created_at", { ascending: false });
+      .from("alerts")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
   });
@@ -49,6 +52,65 @@ export const toggleAlert = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(v))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("alerts").update({ active: data.active }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export async function createInAppNotification(
+  supabaseAdmin: { from: (table: string) => { insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> } },
+  userId: string,
+  title: string,
+  body: string,
+  kind = "info",
+) {
+  const { error } = await supabaseAdmin.from("notifications").insert({
+    user_id: userId,
+    title,
+    body,
+    kind,
+    read: false,
+  });
+  if (error) {
+    console.error("[notifications] insert failed", error.message);
+    return;
+  }
+
+  const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+  const email = userData.user?.email;
+  if (email) {
+    await sendNotificationEmail({ to: email, title, body });
+  }
+}
+
+export const listNotifications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const markNotificationsRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { error } = await context.supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", context.userId)
+      .eq("read", false);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

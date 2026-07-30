@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { createInAppNotification } from "@/lib/account.functions";
 import { z } from "zod";
 
 // ---------------- Providers CRUD ----------------
@@ -41,6 +42,14 @@ export const connectProvider = createServerFn({ method: "POST" })
         const rows = events.map((e) => ({ ...e, user_id: context.userId, provider_id: inserted.id }));
         await supabaseAdmin.from("cost_events").insert(rows);
         await rebuildRollups(context.userId);
+        await evaluateAlerts(context.userId);
+        await createInAppNotification(
+          supabaseAdmin,
+          context.userId,
+          "Provider connected",
+          `We synced ${events.length} usage events from ${data.type}. Your dashboard is ready.`,
+          "info",
+        );
       }
       await context.supabase
         .from("profiles")
@@ -97,6 +106,14 @@ export const resyncProvider = createServerFn({ method: "POST" })
       const rows = events.map((e) => ({ ...e, user_id: context.userId, provider_id: data.id }));
       await supabaseAdmin.from("cost_events").insert(rows);
       await rebuildRollups(context.userId);
+      await evaluateAlerts(context.userId);
+      await createInAppNotification(
+        supabaseAdmin,
+        context.userId,
+        "Provider synced",
+        `We added ${events.length} recent usage events to your dashboard.`,
+        "info",
+      );
     }
     await supabaseAdmin
       .from("providers")
@@ -104,6 +121,72 @@ export const resyncProvider = createServerFn({ method: "POST" })
       .eq("id", data.id);
     return { synced: events.length };
   });
+
+async function evaluateAlerts(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: alerts, error: alertsErr } = await supabaseAdmin
+    .from("alerts")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("active", true);
+  if (alertsErr || !alerts?.length) return;
+
+  const now = Date.now();
+  const last24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const last7d = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const last14d = new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [{ data: recent }, { data: weekly }, { data: prevWeek }] = await Promise.all([
+    supabaseAdmin.from("cost_events").select("cost_usd, model").eq("user_id", userId).gte("occurred_at", last24h),
+    supabaseAdmin.from("cost_events").select("cost_usd").eq("user_id", userId).gte("occurred_at", last7d),
+    supabaseAdmin.from("cost_events").select("cost_usd").eq("user_id", userId).gte("occurred_at", last14d).lt("occurred_at", last7d),
+  ]);
+
+  const recentTotal = (recent ?? []).reduce((sum, row) => sum + Number(row.cost_usd ?? 0), 0);
+  const weeklyTotal = (weekly ?? []).reduce((sum, row) => sum + Number(row.cost_usd ?? 0), 0);
+  const prevWeekTotal = (prevWeek ?? []).reduce((sum, row) => sum + Number(row.cost_usd ?? 0), 0);
+
+  for (const alert of alerts) {
+    const triggeredAt = alert.last_triggered_at ? new Date(alert.last_triggered_at).getTime() : 0;
+    if (triggeredAt && triggeredAt > now - 24 * 60 * 60 * 1000) continue;
+
+    let value = 0;
+    let message = "";
+    let shouldTrigger = false;
+
+    if (alert.type === "daily_spend") {
+      value = recentTotal;
+      shouldTrigger = value >= Number(alert.threshold ?? 0);
+      message = `Daily spend reached $${value.toFixed(2)}, above your ${alert.name} threshold.`;
+    } else if (alert.type === "weekly_change") {
+      const deltaPct = prevWeekTotal > 0 ? ((weeklyTotal - prevWeekTotal) / prevWeekTotal) * 100 : weeklyTotal > 0 ? 100 : 0;
+      value = deltaPct;
+      shouldTrigger = deltaPct >= Number(alert.threshold ?? 0);
+      message = `Spend climbed ${deltaPct.toFixed(1)}% over the prior week, above your ${alert.name} threshold.`;
+    } else if (alert.type === "model_usage" && alert.model) {
+      value = (recent ?? []).filter((row) => row.model === alert.model).reduce((sum, row) => sum + Number(row.cost_usd ?? 0), 0);
+      shouldTrigger = value >= Number(alert.threshold ?? 0);
+      message = `${alert.model} usage reached $${value.toFixed(2)} in the last 24 hours.`;
+    }
+
+    if (!shouldTrigger) continue;
+
+    const { error: eventError } = await supabaseAdmin.from("alert_events").insert({
+      alert_id: alert.id,
+      user_id: userId,
+      value,
+      message,
+      triggered_at: new Date().toISOString(),
+    });
+    if (eventError) {
+      console.error("[alerts] insert failed", eventError.message);
+      continue;
+    }
+
+    await supabaseAdmin.from("alerts").update({ last_triggered_at: new Date().toISOString() }).eq("id", alert.id);
+    await createInAppNotification(supabaseAdmin, userId, alert.name, message, "warning");
+  }
+}
 
 async function rebuildRollups(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -188,6 +271,8 @@ export const getDashboard = createServerFn({ method: "POST" })
       .gte("occurred_at", prevSince)
       .lt("occurred_at", since);
     const prevTotal = (prev ?? []).reduce((s, r) => s + Number(r.cost_usd), 0);
+
+    await evaluateAlerts(context.userId);
 
     return {
       totals: {

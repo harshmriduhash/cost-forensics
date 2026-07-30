@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { getSecurityHeaders } from "./lib/security";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -49,12 +50,21 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const headers = new Headers(response.headers);
+      Object.entries(getSecurityHeaders()).forEach(([key, value]) => headers.set(key, value));
+      const securedResponse = new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+      return await normalizeCatastrophicSsrResponse(securedResponse);
     } catch (error) {
       console.error(error);
+      const headers = new Headers(getSecurityHeaders());
+      headers.set("content-type", "text/html; charset=utf-8");
       return new Response(renderErrorPage(), {
         status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
+        headers,
       });
     }
   },

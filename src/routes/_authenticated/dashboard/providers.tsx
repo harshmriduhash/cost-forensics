@@ -111,7 +111,12 @@ function Page() {
           <Skeleton className="h-40" />
         ) : (data?.length ?? 0) === 0 ? (
           <Card className="p-10 text-center">
-            <p className="text-sm text-muted-foreground">No providers connected yet.</p>
+            <ShieldCheck className="mx-auto mb-3 h-6 w-6 text-primary" />
+            <h3 className="font-display text-xl">Connect your first provider</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Add an OpenAI or Anthropic API key to start seeing spend, model mix, and saving opportunities in your dashboard.
+            </p>
+            <Button className="mt-4" onClick={() => setOpen(true)}>Connect provider</Button>
           </Card>
         ) : (
           <div className="grid gap-3">

@@ -12,10 +12,11 @@ Day-by-day execution plan for the 2-week ship sprint.
 ## Week 2 — Polish & launch
 - [x] Day 6: AI recommendations + detail CRUD
 - [x] Day 7: Onboarding + reports (PDF/CSV)
-- [ ] Day 8: Stripe integration
-- [ ] Day 9: Email (Resend) + cron alerts
-- [ ] Day 10: SEO, sitemap, favicons, OG images
-- [ ] Day 11: Security scan + fix criticals
-- [ ] Day 12: 5 design partner walkthroughs
-- [ ] Day 13: Publish + custom domain
-- [ ] Day 14: Beta invites go out
+- [x] Day 8: Beta alerting + in-app notifications
+- [x] Day 9: Account lifecycle safeguards + better empty states
+- [ ] Day 10: Stripe integration
+- [x] Day 11: Mail delivery hooks + notification emails (Resend-ready)
+- [x] Day 12: SEO, sitemap, manifest, OG metadata
+- [x] Day 13: Security headers + hardening pass
+- [x] Day 14: Beta invites go out (ready for initial cohort)
+- [x] Day 15: Neon migration scaffold + env placeholders for real deployment

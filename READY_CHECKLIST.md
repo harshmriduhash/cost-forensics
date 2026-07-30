@@ -4,6 +4,7 @@ The final "am I ready to click Publish?" checklist. Sign this off with your co-f
 
 - [ ] All items in `LAUNCH_CHECKLIST.md` sections 0–3 complete
 - [ ] All items in `PRODUCTION_CHECKLIST.md` — Security section complete
+- [ ] Beta users can sign up, connect a provider, and reach the dashboard without support
 - [ ] Landing page passes eyeball test on mobile + desktop
 - [ ] Signup → onboarding → connect provider → dashboard flow tested end-to-end with a real API key
 - [ ] AI recommendation generation returns non-empty results on a real dataset

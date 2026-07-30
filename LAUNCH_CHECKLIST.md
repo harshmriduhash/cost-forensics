@@ -11,6 +11,8 @@ See also: `PRODUCTION_CHECKLIST.md`, `EXECUTION_CHECKLIST.md`, `MVP_LAUNCH_CHECK
 - [ ] `bun run build` completes with 0 errors
 - [ ] Environment variables verified in Lovable Cloud
 - [ ] Latest DB migration applied
+- [ ] Neon connection string configured if using the new DB path
+- [ ] Resend sender domain verified before sending real emails
 
 ## 1. Product
 
@@ -23,9 +25,10 @@ See also: `PRODUCTION_CHECKLIST.md`, `EXECUTION_CHECKLIST.md`, `MVP_LAUNCH_CHECK
 - [x] Cost dashboard (KPIs, line, bar, donut, drill-down)
 - [x] AI recommendations engine (Lovable AI Gateway)
 - [x] Recommendation detail CRUD (view, edit, notes, actual savings, delete)
-- [x] Alerts (create/list/toggle)
+- [x] Alerts (create/list/toggle) with in-app notifications and event history
 - [x] Cost reports — PDF + CSV export
-- [x] Settings (profile, providers, danger zone)
+- [x] Settings (profile, providers, danger zone, account deletion)
+- [x] Mail notification hooks for provider, alert, and recommendation events
 
 ## 2. Security
 
@@ -35,7 +38,8 @@ See also: `PRODUCTION_CHECKLIST.md`, `EXECUTION_CHECKLIST.md`, `MVP_LAUNCH_CHECK
 - [x] `has_role()` as `SECURITY DEFINER` w/ locked search_path
 - [x] Provider API keys encrypted at rest (AES-GCM, server-only secret)
 - [x] Server-only secrets never leak into client bundle
-- [ ] Run `security--run_security_scan` and resolve criticals
+- [x] Security headers applied globally for CSP, HSTS, frame protections, and XSS mitigation
+- [ ] Run a third-party security scan and resolve any critical findings
 - [ ] Set up rate limiting for public API routes (once webhooks land)
 
 ## 3. Data & Backend
@@ -68,9 +72,9 @@ See also: `PRODUCTION_CHECKLIST.md`, `EXECUTION_CHECKLIST.md`, `MVP_LAUNCH_CHECK
 
 - [x] Unique title + description on every route
 - [x] Open Graph + Twitter card on landing
-- [ ] `sitemap.xml` at `/api/public/sitemap.xml`
-- [ ] `robots.txt`
-- [ ] Favicon set + apple-touch-icon
+- [x] `sitemap.xml` at `/sitemap.xml`
+- [x] `robots.txt`
+- [x] Favicon + web manifest + apple-touch icon wired
 
 ## 7. Observability
 

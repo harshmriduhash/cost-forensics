@@ -1,9 +1,12 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Activity, BarChart3, Bell, FileText, Lightbulb, Plug, Settings, LogOut, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { listNotifications, markNotificationsRead } from "@/lib/account.functions";
 
 const items = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
@@ -18,6 +21,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [email, setEmail] = useState<string>("");
+  const notificationsFn = useServerFn(listNotifications);
+  const markReadFn = useServerFn(markNotificationsRead);
+
+  const { data: notifications = [], refetch } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => notificationsFn({}),
+  });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
@@ -26,6 +36,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut();
     navigate({ to: "/" });
+  }
+
+  async function clearNotifications() {
+    await markReadFn({});
+    refetch();
   }
 
   return (
@@ -65,6 +80,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
             <div className="rounded-md border border-border/60 p-3">
               <div className="mb-2 truncate text-xs text-muted-foreground">{email}</div>
+              {notifications.some((n: { read: boolean }) => !n.read) && (
+                <Button variant="outline" size="sm" className="mb-2 w-full justify-start px-2" onClick={clearNotifications}>
+                  <Bell className="mr-2 h-3.5 w-3.5" /> Mark notifications read
+                </Button>
+              )}
               <Button variant="ghost" size="sm" className="w-full justify-start px-2" onClick={signOut}>
                 <LogOut className="mr-2 h-3.5 w-3.5" /> Sign out
               </Button>

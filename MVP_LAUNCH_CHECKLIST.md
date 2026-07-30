@@ -10,9 +10,10 @@ The minimum surface area that makes the app useful for a real early-user cohort.
 - [x] Encrypted key storage
 - [x] Cost dashboard w/ time-range + drill-down
 - [x] AI-generated recommendations + full CRUD detail view
-- [x] Alerts (create / manage)
+- [x] Alerts (create / manage) with in-app notifications
 - [x] PDF + CSV cost reports
-- [x] Settings
+- [x] Settings with account deletion
+- [x] Notification email hooks and SEO/security hardening for beta launch
 
 ## Deferred to v1.1 (post beta)
 - [ ] Stripe billing (Free / Pro $299)

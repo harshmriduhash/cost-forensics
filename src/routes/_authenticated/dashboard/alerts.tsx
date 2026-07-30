@@ -102,8 +102,12 @@ function Page() {
           <Skeleton className="h-40" />
         ) : (data?.length ?? 0) === 0 ? (
           <Card className="p-10 text-center">
-            <Bell className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No alerts yet. Create one to get notified of spend anomalies.</p>
+            <Bell className="mx-auto mb-2 h-6 w-6 text-primary" />
+            <h3 className="font-display text-xl">No alerts yet</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Create a threshold alert so you are notified when spend spikes or a model starts costing too much.
+            </p>
+            <Button className="mt-4" onClick={() => setOpen(true)}>Create alert</Button>
           </Card>
         ) : (
           <div className="grid gap-3">
