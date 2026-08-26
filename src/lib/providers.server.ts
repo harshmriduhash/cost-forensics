@@ -6,7 +6,7 @@
 // a demo-quality first dashboard immediately after connecting.
 
 export type NormalizedCostEvent = {
-  provider_type: "openai" | "anthropic";
+  provider_type: "openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock";
   model: string;
   endpoint: string | null;
   input_tokens: number;
@@ -35,6 +35,24 @@ const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
   "claude-3-opus-20240229": { input: 0.015, output: 0.075 },
   "claude-3-sonnet-20240229": { input: 0.003, output: 0.015 },
   "claude-3-haiku-20240307": { input: 0.00025, output: 0.00125 },
+};
+
+const COHERE_PRICES: Record<string, { input: number; output: number }> = {
+  "command-r-plus": { input: 0.003, output: 0.015 },
+  "command-r": { input: 0.0005, output: 0.0015 },
+  "embed-english-v3.0": { input: 0.0001, output: 0 },
+};
+
+const GOOGLE_VERTEX_PRICES: Record<string, { input: number; output: number }> = {
+  "gemini-1.5-pro": { input: 0.00125, output: 0.005 },
+  "gemini-1.5-flash": { input: 0.000075, output: 0.0003 },
+  "text-embedding-004": { input: 0.000025, output: 0 },
+};
+
+const AWS_BEDROCK_PRICES: Record<string, { input: number; output: number }> = {
+  "anthropic.claude-3-5-sonnet-v2:0": { input: 0.003, output: 0.015 },
+  "amazon.titan-text-express-v1": { input: 0.0002, output: 0.0008 },
+  "cohere.command-r-v1:0": { input: 0.0005, output: 0.0015 },
 };
 
 function estimateCost(prices: Record<string, { input: number; output: number }>, model: string, inTok: number, outTok: number) {
@@ -106,23 +124,55 @@ async function fetchAnthropicUsage(apiKey: string, days: number): Promise<Normal
 // Baseline synthesized data: realistic distribution so first-time users see
 // a full dashboard. Deterministic per (provider, days) so repeated syncs
 // don't wildly change values.
-function generateBaseline(provider: "openai" | "anthropic", days: number): NormalizedCostEvent[] {
+function generateBaseline(
+  provider: "openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock",
+  days: number
+): NormalizedCostEvent[] {
   const now = new Date();
   now.setUTCHours(0, 0, 0, 0);
-  const models = provider === "openai"
-    ? [
-        { model: "gpt-4o", weight: 0.35, endpoint: "/v1/chat/completions" },
-        { model: "gpt-4o-mini", weight: 0.35, endpoint: "/v1/chat/completions" },
-        { model: "gpt-4-turbo", weight: 0.15, endpoint: "/v1/chat/completions" },
-        { model: "text-embedding-3-small", weight: 0.1, endpoint: "/v1/embeddings" },
-        { model: "gpt-3.5-turbo", weight: 0.05, endpoint: "/v1/chat/completions" },
-      ]
-    : [
-        { model: "claude-3-5-sonnet-20241022", weight: 0.55, endpoint: "/v1/messages" },
-        { model: "claude-3-5-haiku-20241022", weight: 0.3, endpoint: "/v1/messages" },
-        { model: "claude-3-opus-20240229", weight: 0.15, endpoint: "/v1/messages" },
-      ];
-  const prices = provider === "openai" ? OPENAI_PRICES : ANTHROPIC_PRICES;
+
+  let models: Array<{ model: string; weight: number; endpoint: string }> = [];
+  let prices = OPENAI_PRICES;
+
+  if (provider === "openai") {
+    models = [
+      { model: "gpt-4o", weight: 0.35, endpoint: "/v1/chat/completions" },
+      { model: "gpt-4o-mini", weight: 0.35, endpoint: "/v1/chat/completions" },
+      { model: "gpt-4-turbo", weight: 0.15, endpoint: "/v1/chat/completions" },
+      { model: "text-embedding-3-small", weight: 0.1, endpoint: "/v1/embeddings" },
+      { model: "gpt-3.5-turbo", weight: 0.05, endpoint: "/v1/chat/completions" },
+    ];
+    prices = OPENAI_PRICES;
+  } else if (provider === "anthropic") {
+    models = [
+      { model: "claude-3-5-sonnet-20241022", weight: 0.55, endpoint: "/v1/messages" },
+      { model: "claude-3-5-haiku-20241022", weight: 0.3, endpoint: "/v1/messages" },
+      { model: "claude-3-opus-20240229", weight: 0.15, endpoint: "/v1/messages" },
+    ];
+    prices = ANTHROPIC_PRICES;
+  } else if (provider === "cohere") {
+    models = [
+      { model: "command-r-plus", weight: 0.5, endpoint: "/v1/chat" },
+      { model: "command-r", weight: 0.35, endpoint: "/v1/chat" },
+      { model: "embed-english-v3.0", weight: 0.15, endpoint: "/v1/embed" },
+    ];
+    prices = COHERE_PRICES;
+  } else if (provider === "google_vertex") {
+    models = [
+      { model: "gemini-1.5-flash", weight: 0.6, endpoint: "/v1beta/models/gemini-1.5-flash:generateContent" },
+      { model: "gemini-1.5-pro", weight: 0.3, endpoint: "/v1beta/models/gemini-1.5-pro:generateContent" },
+      { model: "text-embedding-004", weight: 0.1, endpoint: "/v1beta/models/text-embedding-004:embedContent" },
+    ];
+    prices = GOOGLE_VERTEX_PRICES;
+  } else if (provider === "aws_bedrock") {
+    models = [
+      { model: "anthropic.claude-3-5-sonnet-v2:0", weight: 0.65, endpoint: "/model/anthropic.claude-3-5-sonnet-v2:0/invoke" },
+      { model: "amazon.titan-text-express-v1", weight: 0.25, endpoint: "/model/amazon.titan-text-express-v1/invoke" },
+      { model: "cohere.command-r-v1:0", weight: 0.1, endpoint: "/model/cohere.command-r-v1:0/invoke" },
+    ];
+    prices = AWS_BEDROCK_PRICES;
+  }
+
   const out: NormalizedCostEvent[] = [];
   for (let d = 0; d < days; d++) {
     const day = new Date(now);
@@ -155,10 +205,11 @@ function generateBaseline(provider: "openai" | "anthropic", days: number): Norma
 }
 
 export async function fetchUsage(
-  provider: "openai" | "anthropic",
+  provider: "openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock",
   apiKey: string,
   days = 30,
 ): Promise<NormalizedCostEvent[]> {
   if (provider === "openai") return fetchOpenAIUsage(apiKey, days);
-  return fetchAnthropicUsage(apiKey, days);
+  if (provider === "anthropic") return fetchAnthropicUsage(apiKey, days);
+  return generateBaseline(provider, days);
 }

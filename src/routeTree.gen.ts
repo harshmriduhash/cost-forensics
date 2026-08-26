@@ -24,6 +24,8 @@ import { Route as AuthenticatedDashboardProvidersRouteImport } from './routes/_a
 import { Route as AuthenticatedDashboardRecommendationsRouteImport } from './routes/_authenticated/dashboard/recommendations'
 import { Route as AuthenticatedDashboardReportsRouteImport } from './routes/_authenticated/dashboard/reports'
 import { Route as AuthenticatedDashboardSettingsRouteImport } from './routes/_authenticated/dashboard/settings'
+import { Route as ApiCronSyncRouteImport } from './routes/api/cron/sync'
+import { Route as ApiV1CostsRouteImport } from './routes/api/v1/costs'
 import { Route as AuthenticatedDashboardRecommendationsIdRouteImport } from './routes/_authenticated/dashboard/recommendations.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -106,6 +108,16 @@ const AuthenticatedDashboardSettingsRoute =
     path: '/dashboard/settings',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiCronSyncRoute = ApiCronSyncRouteImport.update({
+  id: '/api/cron/sync',
+  path: '/api/cron/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1CostsRoute = ApiV1CostsRouteImport.update({
+  id: '/api/v1/costs',
+  path: '/api/v1/costs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedDashboardRecommendationsIdRoute =
   AuthenticatedDashboardRecommendationsIdRouteImport.update({
     id: '/$id',
@@ -127,6 +139,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRouteWithChildren
   '/dashboard/reports': typeof AuthenticatedDashboardReportsRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
+  '/api/cron/sync': typeof ApiCronSyncRoute
+  '/api/v1/costs': typeof ApiV1CostsRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/dashboard/recommendations/$id': typeof AuthenticatedDashboardRecommendationsIdRoute
 }
@@ -144,6 +158,8 @@ export interface FileRoutesByTo {
   '/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRouteWithChildren
   '/dashboard/reports': typeof AuthenticatedDashboardReportsRoute
   '/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
+  '/api/cron/sync': typeof ApiCronSyncRoute
+  '/api/v1/costs': typeof ApiV1CostsRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/dashboard/recommendations/$id': typeof AuthenticatedDashboardRecommendationsIdRoute
 }
@@ -163,6 +179,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/recommendations': typeof AuthenticatedDashboardRecommendationsRouteWithChildren
   '/_authenticated/dashboard/reports': typeof AuthenticatedDashboardReportsRoute
   '/_authenticated/dashboard/settings': typeof AuthenticatedDashboardSettingsRoute
+  '/api/cron/sync': typeof ApiCronSyncRoute
+  '/api/v1/costs': typeof ApiV1CostsRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/dashboard/recommendations/$id': typeof AuthenticatedDashboardRecommendationsIdRoute
 }
@@ -182,6 +200,8 @@ export interface FileRouteTypes {
     | '/dashboard/recommendations'
     | '/dashboard/reports'
     | '/dashboard/settings'
+    | '/api/cron/sync'
+    | '/api/v1/costs'
     | '/dashboard/'
     | '/dashboard/recommendations/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -199,6 +219,8 @@ export interface FileRouteTypes {
     | '/dashboard/recommendations'
     | '/dashboard/reports'
     | '/dashboard/settings'
+    | '/api/cron/sync'
+    | '/api/v1/costs'
     | '/dashboard'
     | '/dashboard/recommendations/$id'
   id:
@@ -217,6 +239,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/recommendations'
     | '/_authenticated/dashboard/reports'
     | '/_authenticated/dashboard/settings'
+    | '/api/cron/sync'
+    | '/api/v1/costs'
     | '/_authenticated/dashboard/'
     | '/_authenticated/dashboard/recommendations/$id'
   fileRoutesById: FileRoutesById
@@ -230,6 +254,8 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  ApiCronSyncRoute: typeof ApiCronSyncRoute
+  ApiV1CostsRoute: typeof ApiV1CostsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -339,6 +365,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/cron/sync': {
+      id: '/api/cron/sync'
+      path: '/api/cron/sync'
+      fullPath: '/api/cron/sync'
+      preLoaderRoute: typeof ApiCronSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/costs': {
+      id: '/api/v1/costs'
+      path: '/api/v1/costs'
+      fullPath: '/api/v1/costs'
+      preLoaderRoute: typeof ApiV1CostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/dashboard/recommendations/$id': {
       id: '/_authenticated/dashboard/recommendations/$id'
       path: '/$id'
@@ -397,6 +437,8 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  ApiCronSyncRoute: ApiCronSyncRoute,
+  ApiV1CostsRoute: ApiV1CostsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

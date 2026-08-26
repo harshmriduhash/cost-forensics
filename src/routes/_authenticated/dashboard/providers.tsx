@@ -26,10 +26,29 @@ function Page() {
 
   const { data, isLoading } = useQuery({ queryKey: ["providers"], queryFn: () => listFn({}) });
 
-  const [type, setType] = useState<"openai" | "anthropic">("openai");
+  const [type, setType] = useState<"openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock">("openai");
   const [apiKey, setApiKey] = useState("");
   const [label, setLabel] = useState("");
   const [open, setOpen] = useState(false);
+
+  const providerNames: Record<string, string> = {
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+    cohere: "Cohere",
+    google_vertex: "Google Vertex",
+    aws_bedrock: "AWS Bedrock",
+  };
+
+  const getPlaceholder = (pType: string) => {
+    switch (pType) {
+      case "openai": return "sk-...";
+      case "anthropic": return "sk-ant-...";
+      case "cohere": return "co-...";
+      case "google_vertex": return "AIzaSy...";
+      case "aws_bedrock": return "AKIA...";
+      default: return "Key...";
+    }
+  };
 
   const connect = useMutation({
     mutationFn: () => connectFn({ data: { type, api_key: apiKey, label: label || undefined } }),
@@ -76,30 +95,30 @@ function Page() {
               Your API key is encrypted with AES-GCM before storage. It never leaves our backend and we only make read-only usage calls.
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
+              <div className="md:col-span-2">
                 <Label>Provider</Label>
-                <div className="mt-1.5 flex gap-2">
-                  {(["openai", "anthropic"] as const).map((t) => (
-                    <Button key={t} type="button" variant={type === t ? "default" : "outline"} onClick={() => setType(t)} className="capitalize">
-                      {t}
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {(["openai", "anthropic", "cohere", "google_vertex", "aws_bedrock"] as const).map((t) => (
+                    <Button key={t} type="button" variant={type === t ? "default" : "outline"} onClick={() => setType(t)} className="text-xs">
+                      {providerNames[t]}
                     </Button>
                   ))}
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <Label htmlFor="label">Label (optional)</Label>
                 <Input id="label" placeholder="Production" value={label} onChange={(e) => setLabel(e.target.value)} className="mt-1.5" />
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="key">API key</Label>
-                <Input id="key" type="password" placeholder={type === "openai" ? "sk-..." : "sk-ant-..."} value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="mt-1.5 font-mono" />
+                <Input id="key" type="password" placeholder={getPlaceholder(type)} value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="mt-1.5 font-mono" />
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  For OpenAI, use an <em>admin</em> key for full usage history. Standard keys still work; we'll estimate from a baseline.
+                  Credentials are encrypted securely and used only to query usage metrics.
                 </p>
               </div>
             </div>
             <div className="mt-5 flex gap-2">
-              <Button onClick={() => connect.mutate()} disabled={apiKey.length < 20 || connect.isPending}>
+              <Button onClick={() => connect.mutate()} disabled={apiKey.length < 10 || connect.isPending}>
                 {connect.isPending ? "Connecting..." : "Connect & sync"}
               </Button>
               <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
@@ -114,7 +133,7 @@ function Page() {
             <ShieldCheck className="mx-auto mb-3 h-6 w-6 text-primary" />
             <h3 className="font-display text-xl">Connect your first provider</h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Add an OpenAI or Anthropic API key to start seeing spend, model mix, and saving opportunities in your dashboard.
+              Add OpenAI, Anthropic, Cohere, Vertex, or Bedrock keys to start seeing spend, model mix, and saving opportunities.
             </p>
             <Button className="mt-4" onClick={() => setOpen(true)}>Connect provider</Button>
           </Card>
@@ -124,8 +143,8 @@ function Page() {
               <Card key={p.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-display text-lg capitalize">{p.label ?? p.type}</span>
-                    <Badge variant="outline" className="uppercase text-xs">{p.type}</Badge>
+                    <span className="font-display text-lg">{p.label ?? providerNames[p.type] ?? p.type}</span>
+                    <Badge variant="outline" className="uppercase text-xs">{providerNames[p.type] ?? p.type}</Badge>
                     <Badge className={p.status === "active" ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"}>
                       {p.status}
                     </Badge>
