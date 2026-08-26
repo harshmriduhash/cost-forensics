@@ -24,8 +24,10 @@
 
 - 🎛 A **real-time cost dashboard** (spend, tokens, per-model, per-endpoint)
 - 🧠 **AI-generated optimization recommendations** with concrete code snippets
-- 🚨 **Budget alerts** before you blow through next month's runway
+- 🚨 **Budget alerts** before you blow through next month's runway — with **Slack webhook** delivery
 - 📄 **Board-ready PDF reports** and CSV exports for finance
+- 🔑 **Public REST API** (`GET /api/v1/costs`) with self-serve API key management
+- ⏱ **Scheduled provider sync** via cron endpoint for hands-off ingest
 - 🔐 **AES-GCM-encrypted key storage** — your credentials never leave our backend
 
 Built for AI-first startups, engineering teams shipping LLM features, and CFOs who are tired of "what did we spend on OpenAI last month?"
@@ -48,9 +50,10 @@ Built for AI-first startups, engineering teams shipping LLM features, and CFOs w
 | --- | --- |
 | Blind to spend | Real-time dashboard with drill-down to per-call events |
 | Wrong model choice | AI analyzes *your* traffic and recommends specific downgrades |
-| Reactive finance | Alerts fire when daily / WoW spend crosses your threshold |
+| Reactive finance | Alerts fire when daily / WoW spend crosses your threshold — in-app + Slack |
 | Manual reporting | One-click PDF + CSV exports, board-ready |
-| Security risk | API keys encrypted with AES-GCM before persistence — read-only usage calls only |
+| No programmatic access | REST API with hashed API keys — pull rollups into your own BI stack |
+| Security risk | Provider keys encrypted with AES-GCM before persistence — read-only usage calls only |
 
 ### 💰 Does it save time and money?
 
@@ -84,14 +87,34 @@ Guided flow: welcome → connect provider → done. Skippable at any point.
 - Full **CRUD detail view**: edit, add your own notes, track *actual* savings, mark implemented / dismissed, delete
 
 ### 🚨 Alerts (Beta)
-Daily spend threshold, WoW % change, and model-usage spikes now trigger in-app notifications and alert history.
+Daily spend threshold, WoW % change, and model-usage spikes trigger in-app notifications and alert history. Configure a **Slack incoming webhook** in Settings to mirror alerts to your team channel — includes a one-click test ping.
+
+### 🔑 Public REST API (Beta)
+Self-serve **API key** generation in Settings (`cf_key_*` prefix, SHA-256 hashed at rest). Authenticated requests to:
+
+```http
+GET /api/v1/costs?days=30
+x-api-key: cf_key_…
+```
+
+Returns spend totals, token counts, and daily rollups (Supabase path) or full series breakdown (Neon path). Keys can be revoked instantly; `last_used_at` is tracked per key.
+
+### ⏱ Scheduled Sync (Cron)
+Background ingest endpoint for all active providers across all users:
+
+```http
+GET|POST /api/cron/sync
+Authorization: Bearer <CRON_SECRET>
+```
+
+Fetches last 3 days of usage from OpenAI / Anthropic, inserts `cost_events`, and updates `last_synced_at` / `last_error` per provider. Wire this to Cloudflare Cron Triggers, GitHub Actions, or any scheduler.
 
 ### 📄 Reports
 - Beautiful multi-page **PDF** (cover, executive summary, per-model table, recommendations, activity)
 - Raw **CSV** for BI tools
 
 ### ⚙️ Settings
-Profile, provider management, notification preferences, and a self-serve account deletion flow for beta users.
+Profile, **Slack webhook URL**, provider management, **API key CRUD** (generate / copy / revoke), notification preferences, and a self-serve account deletion flow for beta users.
 
 ---
 
@@ -118,6 +141,11 @@ Profile, provider management, notification preferences, and a self-serve account
 │  │   • account.functions.ts      • reports (client-rendered)   ││
 │  └─────┬─────────────────────┬─────────────────────┬───────────┘│
 │        │ requireSupabaseAuth │ AES-GCM (crypto.server)          │
+│  ┌─────┴───────────────────────────────────────────────────────┐│
+│  │   HTTP API Routes                                           ││
+│  │   • GET  /api/v1/costs   (x-api-key auth → rollups)         ││
+│  │   • GET|POST /api/cron/sync  (CRON_SECRET → bulk ingest)    ││
+│  └─────┬─────────────────────┬─────────────────────┬───────────┘│
 └────────┼─────────────────────┼─────────────────────┼───────────┘
          ▼                     ▼                     ▼
 ┌────────────────┐   ┌──────────────────┐   ┌───────────────────┐
@@ -126,7 +154,13 @@ Profile, provider management, notification preferences, and a self-serve account
 │ • Postgres+RLS │   │ • Anthropic usage│   │   Output.object() │
 │ • Auth (email  │   │                  │   │                   │
 │   + Google)    │   │                  │   │                   │
-└────────────────┘   └──────────────────┘   └───────────────────┘
+└───────┬────────┘   └──────────────────┘   └───────────────────┘
+        │ optional migration path
+        ▼
+┌────────────────┐
+│ Neon Postgres  │  ← set NEON_DATABASE_URL to activate
+│ (same schema)  │    dual-write path in account + providers fns
+└────────────────┘
 ```
 
 ### Low-Level Design (LLD)
@@ -143,6 +177,9 @@ Profile, provider management, notification preferences, and a self-serve account
 │              └──1:*──▶ recommendations  (AI-generated + user-editable)         │
 │              └──1:*──▶ alerts ──1:*──▶ alert_events                            │
 │              └──1:*──▶ notifications                                           │
+│              └──1:*──▶ api_keys         (SHA-256 hash, prefix, last_used_at)   │
+│                                                                                │
+│  profiles.slack_webhook_url  →  Slack incoming webhook for alert delivery      │
 │                                                                                │
 └────────────────────────────────────────────────────────────────────────────────┘
 
@@ -164,6 +201,8 @@ Request lifecycle — "Run AI analysis" example
 - **Roles in a separate table**: `user_roles` + `has_role()` `SECURITY DEFINER` (locked `search_path`). Never on `profiles`.
 - **Provider keys**: 32-byte key derived from `PROVIDER_KEY_ENCRYPTION_SECRET`, AES-256-GCM with random IV, stored as base64. Only decrypted inside server-only handlers.
 - **Zero client-side secrets**: `SUPABASE_SERVICE_ROLE_KEY` and encryption key never leave the edge worker.
+- **Developer API keys**: raw key shown once on creation (`cf_key_*`); only SHA-256 hash persisted. Revocable per key.
+- **Cron endpoint**: protected by `CRON_SECRET` (Bearer header or `?secret=` query param).
 
 ---
 
@@ -175,7 +214,8 @@ Request lifecycle — "Run AI analysis" example
 | Runtime | Cloudflare Workers (edge) |
 | UI | React 19 · Tailwind v4 · shadcn/ui · Radix · Recharts · Lucide |
 | Type safety | TypeScript strict, Zod for every server input |
-| Data | Lovable Cloud (Supabase Postgres + Auth) with RLS |
+| Data | Lovable Cloud (Supabase Postgres + Auth) with RLS; optional [Neon](https://neon.tech) Postgres via `NEON_DATABASE_URL` |
+| API | REST (`/api/v1/costs`) + cron ingest (`/api/cron/sync`) |
 | AI | Lovable AI Gateway → `openai/gpt-5.5` w/ `ai.generateText + Output.object` |
 | PDF | jsPDF + jspdf-autotable (client-side) |
 | Fonts | Instrument Serif (display) + Inter (UI) |
@@ -196,13 +236,26 @@ bun run build
 ```
 
 ### Local beta checklist
-- Install dependencies with npm install
-- Run the app locally with npm run dev and open http://localhost:8080
+- Install dependencies with `bun install` (or `npm install`)
+- Run the app locally with `bun run dev` and open http://localhost:8080
 - Configure Supabase and AI gateway secrets in your environment
 - Connect a real provider key to verify dashboard + recommendations
 - Create at least one alert and verify it appears as an in-app notification
+- Add a Slack webhook URL in Settings and send a test notification
+- Generate an API key in Settings and call `GET /api/v1/costs?days=7` with the `x-api-key` header
+- (Optional) Set `CRON_SECRET` and hit `/api/cron/sync` to verify scheduled ingest
 - Test PDF and CSV export flows
 - Delete the account from Settings if you want to start over cleanly
+
+### Neon migration (optional)
+
+If you prefer Neon over Supabase Postgres for data storage:
+
+1. Run [`neon_schema.sql`](neon_schema.sql) in the Neon SQL Editor
+2. Set `NEON_DATABASE_URL` in your environment
+3. Server functions auto-detect Neon and route reads/writes through `src/integrations/neon/db.ts`
+
+Auth still flows through Supabase today; the Neon auth stub in `src/integrations/neon/auth.ts` is a placeholder for a future cutover.
 
 ### Environment (set in Lovable Cloud, never commit)
 
@@ -211,7 +264,8 @@ bun run build
 | `PROVIDER_KEY_ENCRYPTION_SECRET` | 64-char hex — AES-GCM master | Generate locally with `openssl rand -hex 32` |
 | `LOVABLE_API_KEY` | AI Gateway for recommendation generation | Lovable workspace / AI gateway settings |
 | `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | Existing auth + DB path | Supabase project settings |
-| `NEON_DATABASE_URL` | New Postgres/Neon connection string for the migration path | Neon project connection string |
+| `NEON_DATABASE_URL` | Optional Neon Postgres connection string (activates dual-write migration path) | Neon project → Connection string |
+| `CRON_SECRET` | Protects `/api/cron/sync` from unauthorized calls | Generate with `openssl rand -hex 32` |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Email delivery hooks | Resend dashboard |
 | `APP_URL` | Base URL for magic links and notification emails | Your production or localhost URL |
 
@@ -231,16 +285,19 @@ bun run build
 - Settings + account deletion flow
 - RLS on every table, role separation, encrypted secrets
 - Resend-ready notification emails, SEO metadata, sitemap/manifest assets, and security headers
+- **Slack webhook** integration for alert delivery (Settings + test ping)
+- **Public REST API** (`GET /api/v1/costs`) with self-serve API key management
+- **Cron sync endpoint** (`/api/cron/sync`) for scheduled provider ingest
+- **Neon migration path** — optional Postgres backend via `NEON_DATABASE_URL` + `neon_schema.sql`
+- Provider enum extended for Cohere / Google Vertex / AWS Bedrock (schema-ready)
 
 ### 🔄 In progress
 - Stripe billing (Free / Pro $299) — Checkout + Portal + webhook
 - Production email domain verification and dedicated templates
-- Scheduled ingest + alert evaluation jobs
+- Alert evaluation cron job (threshold checks + notification dispatch)
+- Full provider adapters for Cohere / Vertex / Bedrock
 
 ### 🔜 Next (v1.1 — 30 days post-launch)
-- Slack destination for alerts
-- Cohere / Google Vertex / AWS Bedrock connectors
-- Public API + API-key access (Pro)
 - Team collaboration (invites, roles, shared workspaces)
 - Anomaly detection on daily spend
 - Forecasting (spend projection with confidence bands)
@@ -274,19 +331,25 @@ src/
 │           ├── recommendations.$id.tsx # detail CRUD
 │           ├── reports.tsx             # PDF + CSV export
 │           ├── alerts.tsx
-│           └── settings.tsx
+│           └── settings.tsx              # profile, Slack, API keys, delete account
+│   └── api/
+│       ├── cron/sync.ts                # scheduled provider ingest (CRON_SECRET)
+│       └── v1/costs.ts                 # public cost rollups API (x-api-key)
 ├── lib/
 │   ├── providers.functions.ts          # server fns: connect / sync / dashboard
 │   ├── providers.server.ts             # OpenAI / Anthropic API adapters
 │   ├── recommendations.functions.ts    # AI generation
 │   ├── recommendations-crud.functions.ts # get / edit / delete / create
-│   ├── account.functions.ts
+│   ├── account.functions.ts            # profile, alerts, API keys, Slack
 │   └── crypto.server.ts                # AES-GCM encrypt/decrypt
 ├── components/
 │   ├── site/    (Nav, Footer)
 │   ├── dashboard/ (AppShell, PageHeader)
 │   └── ui/      (shadcn)
-├── integrations/supabase/              # generated client + auth middleware
+├── integrations/
+│   ├── supabase/                       # generated client + auth middleware
+│   └── neon/                           # optional Postgres data layer (db.ts, auth.ts)
+├── neon_schema.sql                     # full DDL for Neon migration
 └── styles.css                          # Tailwind v4 tokens
 ```
 
