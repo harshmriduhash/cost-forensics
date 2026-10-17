@@ -1,7 +1,7 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { attachVerifiedSession } from "@/lib/session-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -19,6 +19,7 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  // Intentionally replaces the legacy attacher; demo tokens are never attached.
+  functionMiddleware: [attachVerifiedSession],
   requestMiddleware: [errorMiddleware],
 }));
