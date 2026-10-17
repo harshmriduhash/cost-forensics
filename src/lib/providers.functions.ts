@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { verifiedAuth } from "@/lib/verified-auth";
 import { createInAppNotification } from "@/lib/account.functions";
 import { z } from "zod";
 import {
@@ -20,7 +20,7 @@ const connectSchema = z.object({
 });
 
 export const connectProvider = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => connectSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { encryptSecret, last4 } = await import("@/lib/crypto.server");
@@ -73,7 +73,7 @@ export const connectProvider = createServerFn({ method: "POST" })
   });
 
 export const listProviders = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     if (!context.supabase) return [];
     try {
@@ -89,7 +89,7 @@ export const listProviders = createServerFn({ method: "GET" })
   });
 
 export const deleteProvider = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     if (isNeonConfigured()) {
@@ -103,7 +103,7 @@ export const deleteProvider = createServerFn({ method: "POST" })
   });
 
 export const resyncProvider = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { decryptSecret } = await import("@/lib/crypto.server");
@@ -249,7 +249,7 @@ async function rebuildRollups(userId: string) {
 const dashSchema = z.object({ days: z.number().int().min(1).max(365).default(30) });
 
 export const getDashboard = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => dashSchema.parse(v ?? { days: 30 }))
   .handler(async ({ data, context }) => {
     if (isNeonConfigured()) {
@@ -332,7 +332,7 @@ export const getDashboard = createServerFn({ method: "POST" })
 
 // Sample calls (drill-down)
 export const getRecentCalls = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ model: z.string().optional(), limit: z.number().int().max(500).default(100) }).parse(v ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
