@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { verifiedAuth } from "@/lib/verified-auth";
 import { sendNotificationEmail } from "@/lib/email";
 import { z } from "zod";
 import {
@@ -18,7 +18,7 @@ import {
 } from "@/integrations/neon/db";
 
 export const listAlerts = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     if (isNeonConfigured()) return await neonListAlerts(context.userId);
     if (!context.supabase) return [];
@@ -35,7 +35,7 @@ export const listAlerts = createServerFn({ method: "GET" })
   });
 
 export const getMe = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     if (isNeonConfigured()) return await neonGetProfile(context.userId);
     if (!context.supabase) {
@@ -70,7 +70,7 @@ const alertSchema = z.object({
 });
 
 export const createAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => alertSchema.parse(v))
   .handler(async ({ data, context }) => {
     if (isNeonConfigured()) {
@@ -90,7 +90,7 @@ export const createAlert = createServerFn({ method: "POST" })
   });
 
 export const deleteAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("alerts").delete().eq("id", data.id);
@@ -99,7 +99,7 @@ export const deleteAlert = createServerFn({ method: "POST" })
   });
 
 export const toggleAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(v))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("alerts").update({ active: data.active }).eq("id", data.id);
@@ -148,7 +148,7 @@ export async function createInAppNotification(
 }
 
 export const listNotifications = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     if (isNeonConfigured()) return await neonListNotifications(context.userId);
     if (!context.supabase) return [];
@@ -166,7 +166,7 @@ export const listNotifications = createServerFn({ method: "GET" })
   });
 
 export const markNotificationsRead = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     if (isNeonConfigured()) {
       await neonMarkNotificationsRead(context.userId);
@@ -183,7 +183,7 @@ export const markNotificationsRead = createServerFn({ method: "POST" })
   });
 
 export const deleteAccount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
@@ -194,7 +194,7 @@ export const deleteAccount = createServerFn({ method: "POST" })
 // -------- profile & subscription --------
 
 export const updateProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ full_name: z.string().max(120), slack_webhook_url: z.string().nullable().optional() }).parse(v))
   .handler(async ({ data, context }) => {
     if (isNeonConfigured()) {
@@ -263,7 +263,7 @@ export async function sendSlackNotification(webhookUrl: string, title: string, b
 }
 
 export const testSlackWebhook = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ url: z.string().url() }).parse(v))
   .handler(async ({ data }) => {
     const ok = await sendSlackNotification(
@@ -279,7 +279,7 @@ export const testSlackWebhook = createServerFn({ method: "POST" })
 // ---------------- Developer API Keys ----------------
 
 export const listApiKeys = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     if (isNeonConfigured()) return await neonListApiKeys(context.userId);
     if (!context.supabase) return [];
@@ -296,7 +296,7 @@ export const listApiKeys = createServerFn({ method: "GET" })
   });
 
 export const generateApiKey = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ name: z.string().min(1).max(60) }).parse(v))
   .handler(async ({ data, context }) => {
     const crypto = await import("crypto");
@@ -323,7 +323,7 @@ export const generateApiKey = createServerFn({ method: "POST" })
   });
 
 export const revokeApiKey = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     if (isNeonConfigured()) {

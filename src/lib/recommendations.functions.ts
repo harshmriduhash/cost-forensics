@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { verifiedAuth } from "@/lib/verified-auth";
 import { createInAppNotification } from "@/lib/account.functions";
 import { z } from "zod";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
@@ -32,7 +32,7 @@ const RecSchema = z.object({
 });
 
 export const generateRecommendations = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     // Aggregate last 30 days
     const since = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
@@ -141,7 +141,7 @@ Be concrete and numeric — use the actual numbers above. Do not invent models n
   });
 
 export const listRecommendations = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("recommendations")
@@ -152,7 +152,7 @@ export const listRecommendations = createServerFn({ method: "GET" })
   });
 
 export const updateRecommendation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) =>
     z.object({ id: z.string().uuid(), status: z.enum(["pending", "implemented", "dismissed"]) }).parse(v),
   )

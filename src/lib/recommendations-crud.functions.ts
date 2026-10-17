@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { verifiedAuth } from "@/lib/verified-auth";
 import { z } from "zod";
 
 export const getRecommendation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
@@ -17,7 +17,7 @@ export const getRecommendation = createServerFn({ method: "POST" })
   });
 
 export const deleteRecommendation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("recommendations").delete().eq("id", data.id);
@@ -37,7 +37,7 @@ const updateSchema = z.object({
 });
 
 export const editRecommendation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => updateSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
@@ -71,7 +71,7 @@ const createSchema = z.object({
 });
 
 export const createRecommendation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([verifiedAuth])
   .inputValidator((v: unknown) => createSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
