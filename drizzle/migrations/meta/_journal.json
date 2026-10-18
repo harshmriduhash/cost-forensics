@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792331510993,
+      "tag": "0000_mvp_atomic_ingestion_and_alerts",
+      "breakpoints": true
+    }
+  ]
+}

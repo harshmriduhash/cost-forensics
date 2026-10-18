@@ -88,6 +88,47 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_events: {
         Row: {
           cost_usd: number
@@ -215,6 +256,7 @@ export type Database = {
           full_name: string | null
           id: string
           onboarded: boolean
+          slack_webhook_url: string | null
           updated_at: string
         }
         Insert: {
@@ -224,6 +266,7 @@ export type Database = {
           full_name?: string | null
           id: string
           onboarded?: boolean
+          slack_webhook_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -233,6 +276,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           onboarded?: boolean
+          slack_webhook_url?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -410,6 +454,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      record_alert_breach: {
+        Args: { p_alert: string; p_message: string; p_value: number }
+        Returns: string
+      }
+      replace_provider_snapshot: {
+        Args: { p_events: Json; p_provider: string }
+        Returns: number
       }
     }
     Enums: {
