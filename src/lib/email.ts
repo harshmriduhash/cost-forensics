@@ -1,7 +1,3 @@
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "notifications@costforensics.app";
-const APP_URL = process.env.APP_URL ?? "https://costforensics.app";
-
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -19,7 +15,9 @@ export type EmailMessage = {
 };
 
 export async function sendEmail(message: EmailMessage) {
-  if (!RESEND_API_KEY) {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL;
+  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
     return { ok: false as const, skipped: "missing_resend_api_key" };
   }
 
@@ -55,13 +53,16 @@ export async function sendNotificationEmail({
   to,
   title,
   body,
-  ctaUrl = `${APP_URL}/dashboard`,
+  ctaUrl,
 }: {
   to: string;
   title: string;
   body: string;
   ctaUrl?: string;
 }) {
+  const APP_URL = process.env.APP_URL;
+  if (!APP_URL && !ctaUrl) return { ok: false as const, skipped: "missing_app_url" };
+  ctaUrl = ctaUrl ?? `${APP_URL}/dashboard`;
   return sendEmail({
     to,
     subject: `Cost Forensics • ${title}`,
