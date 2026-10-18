@@ -13,16 +13,6 @@ export const Route = createFileRoute("/_authenticated")({
       console.warn("[Auth] Supabase auth check error:", e);
     }
 
-    if (typeof window !== "undefined") {
-      const demoRaw = localStorage.getItem("cf_demo_user");
-      if (demoRaw) {
-        try {
-          const demoUser = JSON.parse(demoRaw);
-          return { user: demoUser };
-        } catch {}
-      }
-    }
-
     throw redirect({
       to: "/auth",
       search: { redirect: location.href },
