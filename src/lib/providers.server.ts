@@ -1,215 +1,57 @@
-// Provider adapters for fetching usage/cost data. Server-only.
-// NOTE: OpenAI's usage endpoint is available under the admin/usage API and
-// requires an admin key; the standard secret key may not have permissions.
-// We ingest what we can and fall back to a synthesized baseline when the
-// provider's usage endpoint returns unauthorized, so the user still sees
-// a demo-quality first dashboard immediately after connecting.
-
+// Organization usage reports only. No synthetic usage is generated or persisted.
 export type NormalizedCostEvent = {
-  provider_type: "openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock";
-  model: string;
-  endpoint: string | null;
-  input_tokens: number;
-  output_tokens: number;
-  cost_usd: number;
-  requests: number;
-  occurred_at: string; // ISO
+  provider_type: 'openai' | 'anthropic'; model: string; endpoint: string | null;
+  input_tokens: number; output_tokens: number; cost_usd: number; requests: number; occurred_at: string;
 };
 
-// ---------- OpenAI ----------
-// Basic price map (USD per 1K tokens, rough public pricing snapshot). Used as
-// a fallback estimator when the provider doesn't return a cost figure.
-const OPENAI_PRICES: Record<string, { input: number; output: number }> = {
-  "gpt-4o": { input: 0.0025, output: 0.01 },
-  "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
-  "gpt-4-turbo": { input: 0.01, output: 0.03 },
-  "gpt-4": { input: 0.03, output: 0.06 },
-  "gpt-3.5-turbo": { input: 0.0005, output: 0.0015 },
-  "text-embedding-3-small": { input: 0.00002, output: 0 },
-  "text-embedding-3-large": { input: 0.00013, output: 0 },
-};
-
-const ANTHROPIC_PRICES: Record<string, { input: number; output: number }> = {
-  "claude-3-5-sonnet-20241022": { input: 0.003, output: 0.015 },
-  "claude-3-5-haiku-20241022": { input: 0.0008, output: 0.004 },
-  "claude-3-opus-20240229": { input: 0.015, output: 0.075 },
-  "claude-3-sonnet-20240229": { input: 0.003, output: 0.015 },
-  "claude-3-haiku-20240307": { input: 0.00025, output: 0.00125 },
-};
-
-const COHERE_PRICES: Record<string, { input: number; output: number }> = {
-  "command-r-plus": { input: 0.003, output: 0.015 },
-  "command-r": { input: 0.0005, output: 0.0015 },
-  "embed-english-v3.0": { input: 0.0001, output: 0 },
-};
-
-const GOOGLE_VERTEX_PRICES: Record<string, { input: number; output: number }> = {
-  "gemini-1.5-pro": { input: 0.00125, output: 0.005 },
-  "gemini-1.5-flash": { input: 0.000075, output: 0.0003 },
-  "text-embedding-004": { input: 0.000025, output: 0 },
-};
-
-const AWS_BEDROCK_PRICES: Record<string, { input: number; output: number }> = {
-  "anthropic.claude-3-5-sonnet-v2:0": { input: 0.003, output: 0.015 },
-  "amazon.titan-text-express-v1": { input: 0.0002, output: 0.0008 },
-  "cohere.command-r-v1:0": { input: 0.0005, output: 0.0015 },
-};
-
-function estimateCost(prices: Record<string, { input: number; output: number }>, model: string, inTok: number, outTok: number) {
-  const p = prices[model] ?? Object.entries(prices).find(([k]) => model.startsWith(k))?.[1];
-  if (!p) return 0;
-  return (inTok / 1000) * p.input + (outTok / 1000) * p.output;
+type Bucket = { start_time?: number; starting_at?: string; results?: Record<string, any>[] };
+async function pages(url: URL, headers: Record<string, string>): Promise<Bucket[]> {
+  const buckets: Bucket[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < 100; i++) {
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new Error(`Usage access denied (${response.status}). Use an organization admin key with usage and billing read permissions.`);
+    const body = await response.json() as { data?: Bucket[]; has_more?: boolean; next_page?: string };
+    if (!Array.isArray(body.data)) throw new Error('Provider returned an invalid usage report.');
+    buckets.push(...body.data);
+    if (!body.has_more) return buckets;
+    if (!body.next_page || seen.has(body.next_page)) throw new Error('Provider returned an invalid pagination cursor.');
+    seen.add(body.next_page);
+    url.searchParams.set('page', body.next_page);
+  }
+  throw new Error('Usage report is too large. Please contact support.');
 }
 
-async function fetchOpenAIUsage(apiKey: string, days: number): Promise<NormalizedCostEvent[]> {
-  const end = Math.floor(Date.now() / 1000);
-  const start = end - days * 86400;
-  try {
-    // Usage endpoint (admin key required). Bucket by 1d.
-    const res = await fetch(
-      `https://api.openai.com/v1/organization/usage/completions?start_time=${start}&end_time=${end}&bucket_width=1d&group_by=model`,
-      { headers: { Authorization: `Bearer ${apiKey}` } },
-    );
-    if (!res.ok) throw new Error(`OpenAI usage ${res.status}`);
-    const json = (await res.json()) as {
-      data?: Array<{
-        start_time: number;
-        results?: Array<{
-          input_tokens?: number;
-          output_tokens?: number;
-          num_model_requests?: number;
-          model?: string;
-        }>;
-      }>;
-    };
-    const out: NormalizedCostEvent[] = [];
-    for (const bucket of json.data ?? []) {
-      const iso = new Date(bucket.start_time * 1000).toISOString();
-      for (const r of bucket.results ?? []) {
-        const model = r.model ?? "unknown";
-        const inT = r.input_tokens ?? 0;
-        const outT = r.output_tokens ?? 0;
-        out.push({
-          provider_type: "openai",
-          model,
-          endpoint: "/v1/chat/completions",
-          input_tokens: inT,
-          output_tokens: outT,
-          cost_usd: estimateCost(OPENAI_PRICES, model, inT, outT),
-          requests: r.num_model_requests ?? 1,
-          occurred_at: iso,
-        });
-      }
-    }
-    return out;
-  } catch (e) {
-    console.error("[openai] usage fetch failed, generating baseline", e);
-    return generateBaseline("openai", days);
+export async function fetchUsage(provider: string, apiKey: string, days = 30): Promise<NormalizedCostEvent[]> {
+  if (provider !== 'openai' && provider !== 'anthropic') throw new Error('This provider is not supported in the MVP.');
+  const end = new Date();
+  const start = new Date(end); start.setUTCDate(start.getUTCDate() - days); start.setUTCHours(0, 0, 0, 0);
+  const headers = provider === 'openai' ? { Authorization: `Bearer ${apiKey}` } : { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
+  const usageUrl = new URL(provider === 'openai' ? 'https://api.openai.com/v1/organization/usage/completions' : 'https://api.anthropic.com/v1/organizations/usage_report/messages');
+  const costUrl = new URL(provider === 'openai' ? 'https://api.openai.com/v1/organization/costs' : 'https://api.anthropic.com/v1/organizations/cost_report');
+  for (const url of [usageUrl, costUrl]) {
+    url.searchParams.set(provider === 'openai' ? 'start_time' : 'starting_at', provider === 'openai' ? String(Math.floor(start.getTime()/1000)) : start.toISOString());
+    url.searchParams.set(provider === 'openai' ? 'end_time' : 'ending_at', provider === 'openai' ? String(Math.floor(end.getTime()/1000)) : end.toISOString());
+    url.searchParams.set('bucket_width', '1d');
   }
-}
-
-async function fetchAnthropicUsage(apiKey: string, days: number): Promise<NormalizedCostEvent[]> {
-  // Anthropic's usage/cost admin API requires admin keys; graceful fallback below.
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages/batches?limit=1", {
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    });
-    if (!res.ok && res.status !== 200) throw new Error(`Anthropic ${res.status}`);
-  } catch (e) {
-    console.warn("[anthropic] key check failed, generating baseline", e);
-  }
-  return generateBaseline("anthropic", days);
-}
-
-// Baseline synthesized data: realistic distribution so first-time users see
-// a full dashboard. Deterministic per (provider, days) so repeated syncs
-// don't wildly change values.
-function generateBaseline(
-  provider: "openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock",
-  days: number
-): NormalizedCostEvent[] {
-  const now = new Date();
-  now.setUTCHours(0, 0, 0, 0);
-
-  let models: Array<{ model: string; weight: number; endpoint: string }> = [];
-  let prices = OPENAI_PRICES;
-
-  if (provider === "openai") {
-    models = [
-      { model: "gpt-4o", weight: 0.35, endpoint: "/v1/chat/completions" },
-      { model: "gpt-4o-mini", weight: 0.35, endpoint: "/v1/chat/completions" },
-      { model: "gpt-4-turbo", weight: 0.15, endpoint: "/v1/chat/completions" },
-      { model: "text-embedding-3-small", weight: 0.1, endpoint: "/v1/embeddings" },
-      { model: "gpt-3.5-turbo", weight: 0.05, endpoint: "/v1/chat/completions" },
-    ];
-    prices = OPENAI_PRICES;
-  } else if (provider === "anthropic") {
-    models = [
-      { model: "claude-3-5-sonnet-20241022", weight: 0.55, endpoint: "/v1/messages" },
-      { model: "claude-3-5-haiku-20241022", weight: 0.3, endpoint: "/v1/messages" },
-      { model: "claude-3-opus-20240229", weight: 0.15, endpoint: "/v1/messages" },
-    ];
-    prices = ANTHROPIC_PRICES;
-  } else if (provider === "cohere") {
-    models = [
-      { model: "command-r-plus", weight: 0.5, endpoint: "/v1/chat" },
-      { model: "command-r", weight: 0.35, endpoint: "/v1/chat" },
-      { model: "embed-english-v3.0", weight: 0.15, endpoint: "/v1/embed" },
-    ];
-    prices = COHERE_PRICES;
-  } else if (provider === "google_vertex") {
-    models = [
-      { model: "gemini-1.5-flash", weight: 0.6, endpoint: "/v1beta/models/gemini-1.5-flash:generateContent" },
-      { model: "gemini-1.5-pro", weight: 0.3, endpoint: "/v1beta/models/gemini-1.5-pro:generateContent" },
-      { model: "text-embedding-004", weight: 0.1, endpoint: "/v1beta/models/text-embedding-004:embedContent" },
-    ];
-    prices = GOOGLE_VERTEX_PRICES;
-  } else if (provider === "aws_bedrock") {
-    models = [
-      { model: "anthropic.claude-3-5-sonnet-v2:0", weight: 0.65, endpoint: "/model/anthropic.claude-3-5-sonnet-v2:0/invoke" },
-      { model: "amazon.titan-text-express-v1", weight: 0.25, endpoint: "/model/amazon.titan-text-express-v1/invoke" },
-      { model: "cohere.command-r-v1:0", weight: 0.1, endpoint: "/model/cohere.command-r-v1:0/invoke" },
-    ];
-    prices = AWS_BEDROCK_PRICES;
-  }
-
+  usageUrl.searchParams.append(provider === 'openai' ? 'group_by' : 'group_by[]', 'model');
+  if (provider === 'anthropic') costUrl.searchParams.append('group_by[]', 'description');
+  const [usage, costs] = await Promise.all([pages(usageUrl, headers), pages(costUrl, headers)]);
   const out: NormalizedCostEvent[] = [];
-  for (let d = 0; d < days; d++) {
-    const day = new Date(now);
-    day.setUTCDate(day.getUTCDate() - d);
-    // seasonality: weekends softer
-    const dow = day.getUTCDay();
-    const dayFactor = dow === 0 || dow === 6 ? 0.55 : 1;
-    for (const m of models) {
-      // pseudo-random deterministic
-      const seed = (day.getUTCDate() * 31 + m.model.length + (provider === "openai" ? 1 : 2)) % 100;
-      const jitter = 0.7 + (seed / 100) * 0.6;
-      const requests = Math.round(1200 * m.weight * dayFactor * jitter);
-      const avgIn = 800;
-      const avgOut = m.endpoint.includes("embed") ? 0 : 350;
-      const inTok = requests * avgIn;
-      const outTok = requests * avgOut;
-      out.push({
-        provider_type: provider,
-        model: m.model,
-        endpoint: m.endpoint,
-        input_tokens: inTok,
-        output_tokens: outTok,
-        cost_usd: estimateCost(prices, m.model, inTok, outTok),
-        requests,
-        occurred_at: day.toISOString(),
-      });
-    }
+  const iso = (b: Bucket) => b.starting_at ?? new Date(Number(b.start_time) * 1000).toISOString();
+  // Token and billing rows are deliberately separate: provider billing does not always attribute cost to a model.
+  for (const b of usage) for (const r of b.results ?? []) {
+    const cache = r.cache_creation ?? {};
+    out.push({ provider_type: provider, model: r.model ?? 'Unknown model', endpoint: null,
+      input_tokens: Number(r.input_tokens ?? r.uncached_input_tokens ?? 0) + (provider === 'anthropic' ? Number(r.cache_read_input_tokens ?? 0) + Number(cache.ephemeral_1h_input_tokens ?? 0) + Number(cache.ephemeral_5m_input_tokens ?? 0) : 0),
+      output_tokens: Number(r.output_tokens ?? 0), requests: Number(r.num_model_requests ?? 0), cost_usd: 0, occurred_at: iso(b) });
+  }
+  for (const b of costs) for (const r of b.results ?? []) {
+    const amount = provider === 'openai' ? Number(r.amount?.value ?? 0) : Number(r.amount ?? 0)/100;
+    if (provider === 'openai' && r.amount?.currency && r.amount.currency !== 'usd') throw new Error('Only USD billing reports are supported.');
+    if (!Number.isFinite(amount) || amount < 0) throw new Error('Provider returned an invalid billing amount.');
+    out.push({ provider_type: provider, model: r.model ?? r.description ?? r.line_item ?? 'Unattributed billing', endpoint: null,
+      input_tokens: 0, output_tokens: 0, requests: 0, cost_usd: amount, occurred_at: iso(b) });
   }
   return out;
-}
-
-export async function fetchUsage(
-  provider: "openai" | "anthropic" | "cohere" | "google_vertex" | "aws_bedrock",
-  apiKey: string,
-  days = 30,
-): Promise<NormalizedCostEvent[]> {
-  if (provider === "openai") return fetchOpenAIUsage(apiKey, days);
-  if (provider === "anthropic") return fetchAnthropicUsage(apiKey, days);
-  return generateBaseline(provider, days);
 }

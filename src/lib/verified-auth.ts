@@ -1,7 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
+import type { AppDatabase } from '@/lib/database';
 
 // Fail closed: neither demo tokens nor database connection strings establish identity.
 export const verifiedAuth = createMiddleware({ type: 'function' }).server(async ({ next }) => {
@@ -10,7 +10,7 @@ export const verifiedAuth = createMiddleware({ type: 'function' }).server(async 
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) throw new Error('Authentication is unavailable. Please try again later.');
-  const supabase = createClient<Database>(url, key, {
+  const supabase = createClient<AppDatabase>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       headers: { Authorization: `Bearer ${token}` },
